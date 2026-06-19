@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-tracebench"
+version = "0.1.0"
+description = "OpenTelemetry-native observability and replay framework for LLM apps and agents."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Vinay Gupta" }]
+keywords = ["agents", "llm", "observability", "opentelemetry", "tracing"]
+dependencies = []
+
+[project.scripts]
+tracebench = "tracebench.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
