@@ -1,106 +1,121 @@
-<h1 align="center">Agent TraceBench</h1>
+# Agent TraceBench
 
-<p align="center"><strong>OpenTelemetry-native observability and replay tools for LLM applications and agents.</strong></p>
+OpenTelemetry-native trace inspection for LLM applications and agent workflows.
 
-<p align="center">
-  <a href="https://github.com/aivinay/agent-tracebench/actions/workflows/ci.yml"><img src="https://github.com/aivinay/agent-tracebench/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
-</p>
+[![CI](https://github.com/aivinay/agent-tracebench/actions/workflows/ci.yml/badge.svg)](https://github.com/aivinay/agent-tracebench/actions/workflows/ci.yml)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-<p align="center">
-  <a href="#get-started">Install</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#proof">Proof</a> ·
-  <a href="#privacy-and-scope">Privacy</a> ·
-  <a href="docs/">Docs</a>
-</p>
+Agent TraceBench is a small command-line workbench for JSONL traces. It turns
+agent steps into summaries, replay events, regression checks, cost estimates,
+latency outlier reports, redacted exports, and OpenTelemetry-compatible span
+JSON.
 
----
+Use it when you want trace behavior to be visible in local development and CI
+without standing up a full tracing backend for every experiment.
 
-> Agent TraceBench turns lightweight JSONL traces into deterministic summaries,
-> replay events, regression checks, redacted exports, and
-> OpenTelemetry-compatible span JSON.
+## Start With a Trace
 
-It is built for teams that need agent behavior to be inspectable in local
-development, CI, and production observability workflows without requiring a full
-tracing backend for every experiment.
+Each line is one step:
 
-## What It Does
-
-- Models agent execution as ordered trace steps.
-- Reads, writes, and validates JSONL trace files.
-- Summarizes latency, p95 step latency, token usage, and failed steps.
-- Clusters failures by stable error type.
-- Emits replay events in causal order.
-- Exports OpenTelemetry-compatible span JSON.
-- Compares baseline and candidate traces for CI regression checks.
-- Estimates token cost, detects latency outliers, and redacts sensitive fields.
-- Prints schema and report output as JSON or Markdown.
-- Provides `doctor` diagnostics for local setup and example traces.
-
-## How It Works
-
-```text
-JSONL trace steps
-  |
-  v
-Schema validation
-  |
-  v
-Trace model: latency, token counts, status, attributes
-  |
-  v
-Analysis: summary, failures, replay, cost, outliers
-  |
-  v
-Comparison: baseline vs candidate thresholds
-  |
-  v
-Reports: JSON, Markdown, OpenTelemetry-compatible span JSON
+```jsonl
+{"name":"plan","started_at_ms":0,"ended_at_ms":120,"prompt_tokens":200,"completion_tokens":50}
+{"name":"tool.search","started_at_ms":125,"ended_at_ms":420,"prompt_tokens":80,"completion_tokens":30}
+{"name":"final","started_at_ms":430,"ended_at_ms":520,"prompt_tokens":40,"completion_tokens":80}
 ```
 
-The core invariant: trace analysis is deterministic and suitable for CI, so the
-same trace inputs produce the same metrics, reports, and exit codes.
-
-## Get Started
+Then inspect it:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
-```
 
-```bash
-tracebench --version
 tracebench doctor --trace-file examples/traces/baseline.jsonl
-tracebench schema --format markdown
 tracebench validate examples/traces/baseline.jsonl
 tracebench summarize examples/traces/baseline.jsonl --format markdown
-tracebench compare examples/traces/baseline.jsonl examples/traces/candidate.jsonl --format markdown
 ```
 
-Additional analysis commands:
+## What You Can Ask
+
+| Question | Command |
+| --- | --- |
+| Is this trace valid? | `tracebench validate trace.jsonl` |
+| What happened overall? | `tracebench summarize trace.jsonl` |
+| What order did steps run in? | `tracebench replay trace.jsonl` |
+| Did this candidate regress? | `tracebench compare baseline.jsonl candidate.jsonl` |
+| What would this cost? | `tracebench cost trace.jsonl --input-cost-per-million 1 --output-cost-per-million 3` |
+| Which steps are slow? | `tracebench outliers trace.jsonl --threshold-ms 500` |
+| Can I share a scrubbed trace? | `tracebench redact trace.jsonl --output redacted.jsonl` |
+| Can this feed observability tooling? | `tracebench otel trace.jsonl` |
+
+`tracebench compare` returns exit code `2` when the candidate exceeds configured
+latency, token, or failure thresholds, making it useful in pull requests.
+
+## Trace Contract
+
+Required fields:
+
+- `name`
+- `started_at_ms`
+- `ended_at_ms`
+
+Optional fields:
+
+- `prompt_tokens`
+- `completion_tokens`
+- `status`
+- `error_type`
+- `attributes`
+- `trace_id`, `span_id`, `parent_span_id`
+
+Print the full schema:
 
 ```bash
-tracebench replay examples/traces/baseline.jsonl
+tracebench schema --format markdown
+tracebench schema --format json
+```
+
+See [docs/trace-schema.md](docs/trace-schema.md).
+
+## From Local Debugging to CI
+
+A typical regression check looks like this:
+
+```bash
+tracebench compare \
+  examples/traces/baseline.jsonl \
+  examples/traces/candidate.jsonl \
+  --max-latency-regression-pct 10 \
+  --max-token-regression-pct 10 \
+  --format markdown
+```
+
+For observability integration, export OpenTelemetry-compatible span JSON:
+
+```bash
 tracebench otel examples/traces/baseline.jsonl
-tracebench cost examples/traces/baseline.jsonl --input-cost-per-million 1.0 --output-cost-per-million 3.0
-tracebench outliers examples/traces/baseline.jsonl --median-multiplier 1.5
+```
+
+Generated trace and span IDs are stable when explicit IDs are not supplied.
+
+## Privacy Notes
+
+Agent traces can contain prompts, completions, tool arguments, URLs, and other
+sensitive operational data. Redaction is key-based and recursive for nested
+objects:
+
+```bash
 tracebench redact examples/traces/baseline.jsonl --output redacted.jsonl
 ```
 
-Container smoke check:
+Agent TraceBench does not send telemetry, call model providers, or store traces
+unless you explicitly write output files.
 
-```bash
-docker build -t agent-tracebench:dev .
-docker run --rm agent-tracebench:dev --version
-```
+## Validation and Release Surface
 
-## Proof
-
-The current release is validated with unit tests, linting, package build checks,
-CLI smoke checks, trace validation, and a release-artifact workflow.
+The project includes unit tests, linting, build checks, CLI smoke tests, a
+Dockerfile, and a release-artifact workflow.
 
 ```bash
 python -m unittest discover -s tests
@@ -110,51 +125,22 @@ tracebench doctor --trace-file examples/traces/baseline.jsonl
 tracebench compare examples/traces/baseline.jsonl examples/traces/baseline.jsonl
 ```
 
-Validation covers summary metrics, failure clustering, replay ordering, invalid
-input diagnostics, JSONL round-trips, OpenTelemetry-compatible export,
-regression comparison, cost estimation, outlier detection, redaction, schema
-output, diagnostics, and CLI commands. See [docs/validation.md](docs/validation.md).
-
-## Trace Schema
-
-Each JSONL row represents one agent step:
-
-| Field | Required | Description |
-| --- | --- | --- |
-| `name` | yes | Step, tool, model call, or application operation name |
-| `started_at_ms` | yes | Millisecond timestamp or relative offset |
-| `ended_at_ms` | yes | Millisecond timestamp or relative offset |
-| `prompt_tokens` | no | Input token count |
-| `completion_tokens` | no | Output token count |
-| `status` | no | `ok` or `error` |
-| `error_type` | no | Stable error cluster label |
-| `attributes` | no | Additional structured metadata |
-| `trace_id`, `span_id`, `parent_span_id` | no | Optional tracing identifiers |
-
-Print the canonical schema with:
+Container smoke:
 
 ```bash
-tracebench schema --format json
+docker build -t agent-tracebench:dev .
+docker run --rm agent-tracebench:dev --version
 ```
-
-## Privacy and Scope
-
-Agent traces can contain prompts, completions, tool arguments, URLs, and other
-sensitive operational data. Use `tracebench redact` before sharing traces outside
-a trusted environment.
-
-Agent TraceBench does not send telemetry, call model providers, or store traces
-unless you explicitly write output files. It is a local trace-analysis toolkit,
-not a tracing backend, agent framework, or model evaluation platform.
 
 ## Documentation
 
-| Start here | Go deeper |
-| --- | --- |
-| [CLI reference](docs/cli.md) | [Trace schema](docs/trace-schema.md) |
-| [Architecture](docs/architecture.md) | [Reproducibility](docs/reproducibility.md) |
-| [Validation notes](docs/validation.md) | [Release checklist](docs/release.md) |
-| [Roadmap](docs/roadmap.md) | [Contributing](CONTRIBUTING.md) |
+- [CLI reference](docs/cli.md)
+- [Trace schema](docs/trace-schema.md)
+- [Architecture](docs/architecture.md)
+- [Reproducibility](docs/reproducibility.md)
+- [Validation notes](docs/validation.md)
+- [Release checklist](docs/release.md)
+- [Roadmap](docs/roadmap.md)
 
 ## Development
 
