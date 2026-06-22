@@ -2,6 +2,16 @@
 
 Agent TraceBench installs a `tracebench` command.
 
+## Doctor
+
+```bash
+tracebench doctor
+tracebench doctor --trace-file examples/traces/baseline.jsonl --format json
+```
+
+Checks schema availability and, when a trace is provided, validates the JSONL
+trace. Returns exit code `1` if a check fails.
+
 ## Schema
 
 ```bash

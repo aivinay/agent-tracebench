@@ -1,77 +1,123 @@
-# Agent TraceBench
+<h1 align="center">Agent TraceBench</h1>
 
-[![CI](https://github.com/aivinay/agent-tracebench/actions/workflows/ci.yml/badge.svg)](https://github.com/aivinay/agent-tracebench/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+<p align="center"><strong>OpenTelemetry-native observability and replay tools for LLM applications and agents.</strong></p>
 
-OpenTelemetry-native observability and replay framework for LLM applications and agents.
+<p align="center">
+  <a href="https://github.com/aivinay/agent-tracebench/actions/workflows/ci.yml"><img src="https://github.com/aivinay/agent-tracebench/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
+</p>
 
-Agent TraceBench turns lightweight JSONL traces into deterministic summaries,
-regression checks, replay events, redacted exports, and OpenTelemetry-compatible
-span JSON. It is designed for teams that need agent behavior to be inspectable in
-local development, CI, and production observability workflows.
+<p align="center">
+  <a href="#get-started">Install</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#proof">Proof</a> ·
+  <a href="#privacy-and-scope">Privacy</a> ·
+  <a href="docs/">Docs</a>
+</p>
 
-## Features
+---
 
-- Model agent execution as ordered trace steps.
-- Read and write JSONL trace files.
-- Validate trace files with line-level diagnostics.
-- Summarize total latency, p95 step latency, token usage, and failed steps.
-- Cluster failures by error type for quick triage.
-- Emit replay events that preserve causal ordering.
-- Export OpenTelemetry-compatible span JSON for observability pipelines.
-- Compare baseline and candidate traces for CI regression checks.
-- Estimate token cost from configurable per-million token rates.
-- Detect latency outliers and redact sensitive trace attributes before sharing.
-- Print schema and report output as JSON or Markdown.
+> Agent TraceBench turns lightweight JSONL traces into deterministic summaries,
+> replay events, regression checks, redacted exports, and
+> OpenTelemetry-compatible span JSON.
 
-## Quickstart
+It is built for teams that need agent behavior to be inspectable in local
+development, CI, and production observability workflows without requiring a full
+tracing backend for every experiment.
+
+## What It Does
+
+- Models agent execution as ordered trace steps.
+- Reads, writes, and validates JSONL trace files.
+- Summarizes latency, p95 step latency, token usage, and failed steps.
+- Clusters failures by stable error type.
+- Emits replay events in causal order.
+- Exports OpenTelemetry-compatible span JSON.
+- Compares baseline and candidate traces for CI regression checks.
+- Estimates token cost, detects latency outliers, and redacts sensitive fields.
+- Prints schema and report output as JSON or Markdown.
+- Provides `doctor` diagnostics for local setup and example traces.
+
+## How It Works
+
+```text
+JSONL trace steps
+  |
+  v
+Schema validation
+  |
+  v
+Trace model: latency, token counts, status, attributes
+  |
+  v
+Analysis: summary, failures, replay, cost, outliers
+  |
+  v
+Comparison: baseline vs candidate thresholds
+  |
+  v
+Reports: JSON, Markdown, OpenTelemetry-compatible span JSON
+```
+
+The core invariant: trace analysis is deterministic and suitable for CI, so the
+same trace inputs produce the same metrics, reports, and exit codes.
+
+## Get Started
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
-python3 -m unittest discover -s tests
+python -m pip install -e ".[dev]"
 ```
-
-Create a JSONL trace file:
-
-```jsonl
-{"name":"plan","started_at_ms":0,"ended_at_ms":120,"prompt_tokens":200,"completion_tokens":50}
-{"name":"tool.search","started_at_ms":125,"ended_at_ms":420,"prompt_tokens":80,"completion_tokens":30}
-```
-
-Then summarize it:
 
 ```bash
 tracebench --version
+tracebench doctor --trace-file examples/traces/baseline.jsonl
 tracebench schema --format markdown
 tracebench validate examples/traces/baseline.jsonl
 tracebench summarize examples/traces/baseline.jsonl --format markdown
+tracebench compare examples/traces/baseline.jsonl examples/traces/candidate.jsonl --format markdown
+```
+
+Additional analysis commands:
+
+```bash
 tracebench replay examples/traces/baseline.jsonl
 tracebench otel examples/traces/baseline.jsonl
-tracebench compare examples/traces/baseline.jsonl examples/traces/candidate.jsonl --format markdown
 tracebench cost examples/traces/baseline.jsonl --input-cost-per-million 1.0 --output-cost-per-million 3.0
 tracebench outliers examples/traces/baseline.jsonl --median-multiplier 1.5
 tracebench redact examples/traces/baseline.jsonl --output redacted.jsonl
 ```
 
-`tracebench compare` exits with status code `2` when latency, token, or failure
-regressions exceed configured thresholds. This makes trace behavior testable in
-pull requests without requiring a production tracing backend.
-
-Use `tracebench redact` before sharing traces outside a trusted environment.
-Default redaction covers common prompt, completion, credential, token, and
-message attribute keys.
-
-## Trace schema
-
-Each JSONL row represents one agent step. The command below prints the canonical
-schema:
+Container smoke check:
 
 ```bash
-tracebench schema --format json
+docker build -t agent-tracebench:dev .
+docker run --rm agent-tracebench:dev --version
 ```
+
+## Proof
+
+The current release is validated with unit tests, linting, package build checks,
+CLI smoke checks, trace validation, and a release-artifact workflow.
+
+```bash
+python -m unittest discover -s tests
+ruff check .
+python -m build
+tracebench doctor --trace-file examples/traces/baseline.jsonl
+tracebench compare examples/traces/baseline.jsonl examples/traces/baseline.jsonl
+```
+
+Validation covers summary metrics, failure clustering, replay ordering, invalid
+input diagnostics, JSONL round-trips, OpenTelemetry-compatible export,
+regression comparison, cost estimation, outlier detection, redaction, schema
+output, diagnostics, and CLI commands. See [docs/validation.md](docs/validation.md).
+
+## Trace Schema
+
+Each JSONL row represents one agent step:
 
 | Field | Required | Description |
 | --- | --- | --- |
@@ -85,31 +131,41 @@ tracebench schema --format json
 | `attributes` | no | Additional structured metadata |
 | `trace_id`, `span_id`, `parent_span_id` | no | Optional tracing identifiers |
 
+Print the canonical schema with:
+
+```bash
+tracebench schema --format json
+```
+
+## Privacy and Scope
+
+Agent traces can contain prompts, completions, tool arguments, URLs, and other
+sensitive operational data. Use `tracebench redact` before sharing traces outside
+a trusted environment.
+
+Agent TraceBench does not send telemetry, call model providers, or store traces
+unless you explicitly write output files. It is a local trace-analysis toolkit,
+not a tracing backend, agent framework, or model evaluation platform.
+
 ## Documentation
 
-- [Trace schema](docs/trace-schema.md)
-- [CLI reference](docs/cli.md)
-- [Validation notes](docs/validation.md)
-- [Release checklist](docs/release.md)
-- [Roadmap](docs/roadmap.md)
+| Start here | Go deeper |
+| --- | --- |
+| [CLI reference](docs/cli.md) | [Trace schema](docs/trace-schema.md) |
+| [Architecture](docs/architecture.md) | [Reproducibility](docs/reproducibility.md) |
+| [Validation notes](docs/validation.md) | [Release checklist](docs/release.md) |
+| [Roadmap](docs/roadmap.md) | [Contributing](CONTRIBUTING.md) |
 
 ## Development
 
 ```bash
-python -m pip install -e ".[dev]"
-python -m unittest discover -s tests
-ruff check .
-python -m build
+make install
+make check
 ```
 
-## Roadmap
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
+and [SECURITY.md](SECURITY.md).
 
-Agent TraceBench is designed to grow toward:
+## License
 
-- Direct OpenTelemetry SDK exporters.
-- Trace replay for agent debugging and regression tests.
-- Token, cost, and latency attribution across nested agent steps.
-- Additional evaluation hooks for model, prompt, and tool changes.
-- Failure clustering for common agent reliability issues.
-
-See [docs/roadmap.md](docs/roadmap.md) for the initial milestones.
+[MIT](LICENSE) © 2026 Vinay Gupta

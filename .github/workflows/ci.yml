@@ -28,6 +28,7 @@ jobs:
       - name: CLI smoke
         run: |
           tracebench --version
+          tracebench doctor --trace-file examples/traces/baseline.jsonl --format json
           tracebench schema --format markdown
           tracebench validate examples/traces/baseline.jsonl
           tracebench summarize examples/traces/baseline.jsonl --format markdown

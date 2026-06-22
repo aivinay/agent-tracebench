@@ -192,12 +192,20 @@ class TraceBenchTests(unittest.TestCase):
                     ]
                 )
 
+            doctor_out = io.StringIO()
+            with contextlib.redirect_stdout(doctor_out):
+                doctor_code = run(
+                    ["doctor", "--trace-file", str(baseline), "--format", "json"]
+                )
+
         self.assertEqual(schema_code, 0)
         self.assertIn("| Field |", schema_out.getvalue())
         self.assertEqual(validate_code, 0)
         self.assertTrue(json.loads(validate_out.getvalue())["passed"])
         self.assertEqual(compare_code, 2)
         self.assertIn("Status: failed", compare_out.getvalue())
+        self.assertEqual(doctor_code, 0)
+        self.assertTrue(json.loads(doctor_out.getvalue())["passed"])
 
     def test_cli_invalid_input_returns_diagnostic(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -9,7 +9,9 @@ Validation for the `0.1.0` release focuses on deterministic trace analysis.
   export, regression comparison, cost estimation, outlier detection, and
   redaction.
 - CLI tests cover schema output, trace validation, regression report formatting,
-  and clean diagnostics for invalid input.
+  installation diagnostics, and clean diagnostics for invalid input.
+- CLI smoke checks cover version output, diagnostics, schema output, validation,
+  summary reports, and baseline comparison.
 - Ruff linting is clean.
 - Source distribution and wheel builds complete successfully.
 
@@ -20,6 +22,7 @@ The `examples/traces` directory contains baseline and candidate JSONL traces.
 Run:
 
 ```bash
+tracebench doctor --trace-file examples/traces/baseline.jsonl
 tracebench validate examples/traces/baseline.jsonl
 tracebench summarize examples/traces/baseline.jsonl --format markdown
 tracebench compare examples/traces/baseline.jsonl examples/traces/candidate.jsonl --format markdown

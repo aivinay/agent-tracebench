@@ -9,6 +9,7 @@ from . import __version__
 from .analysis import estimate_cost, latency_outliers, redact_steps
 from .assertions import compare_traces
 from .bench import cluster_failures, replay_events, summarize_trace, summary_to_markdown
+from .doctor import diagnostics_to_json, diagnostics_to_markdown, run_diagnostics
 from .io import read_jsonl, validate_jsonl, write_jsonl
 from .otel import to_otel_spans
 from .reports import regression_to_markdown, validation_to_text
@@ -33,6 +34,13 @@ def run(argv: list[str] | None = None) -> int:
     validate = subparsers.add_parser("validate", help="Validate a JSONL agent trace.")
     validate.add_argument("trace_file", type=Path)
     validate.add_argument("--format", choices=["json", "text"], default="text")
+
+    doctor = subparsers.add_parser(
+        "doctor",
+        help="Check local installation and optional trace input.",
+    )
+    doctor.add_argument("--trace-file", type=Path, help="Optional JSONL trace to validate.")
+    doctor.add_argument("--format", choices=["json", "markdown"], default="markdown")
 
     summarize = subparsers.add_parser("summarize", help="Summarize a JSONL agent trace.")
     summarize.add_argument("trace_file", type=Path)
@@ -107,6 +115,14 @@ def _run_command(args: argparse.Namespace) -> int:
         else:
             print(validation_to_text(report), end="")
         return 0 if report.passed else 1
+
+    if args.command == "doctor":
+        checks = run_diagnostics(args.trace_file)
+        if args.format == "json":
+            print(diagnostics_to_json(checks))
+        else:
+            print(diagnostics_to_markdown(checks), end="")
+        return 0 if all(check.passed for check in checks) else 1
 
     if args.command == "summarize":
         return _summarize(args)

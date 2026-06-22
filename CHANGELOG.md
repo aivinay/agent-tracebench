@@ -7,6 +7,7 @@
 - Added schema and trace validation commands with CI-friendly exit codes.
 - Added Markdown summaries, replay token metrics, and regression comparison reports.
 - Added token-cost estimation, latency outlier detection, and trace redaction.
-- Added CLI commands for summaries, replay, span export, and trace comparison.
+- Added CLI commands for diagnostics, summaries, replay, span export, and trace
+  comparison.
 - Added GitHub Actions, contribution guidance, security policy, packaging
-  metadata, and example traces.
+  metadata, Dockerfile, release-artifact workflow, and example traces.
