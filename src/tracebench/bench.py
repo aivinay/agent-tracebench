@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from math import ceil
-from typing import Iterable
 
 from .models import AgentStep
 
@@ -52,9 +52,29 @@ def replay_events(steps: Iterable[AgentStep]) -> list[dict[str, object]]:
             "name": step.name,
             "latency_ms": step.latency_ms,
             "status": step.status,
+            "total_tokens": step.total_tokens,
         }
         for step in ordered
     ]
+
+
+def summary_to_markdown(summary: TraceSummary, failures: dict[str, int]) -> str:
+    lines = [
+        "# Agent TraceBench Summary",
+        "",
+        "| Metric | Value |",
+        "| --- | ---: |",
+        f"| Steps | {summary.step_count} |",
+        f"| Total latency (ms) | {summary.total_latency_ms} |",
+        f"| p95 step latency (ms) | {summary.p95_step_latency_ms} |",
+        f"| Total tokens | {summary.total_tokens} |",
+        f"| Failed steps | {summary.failed_steps} |",
+    ]
+    if failures:
+        lines.extend(["", "## Failures", ""])
+        for error_type, count in failures.items():
+            lines.append(f"- {error_type}: {count}")
+    return "\n".join(lines) + "\n"
 
 
 def _percentile(values: list[int], percentile: int) -> int:

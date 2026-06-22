@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,13 +8,39 @@ version = "0.1.0"
 description = "OpenTelemetry-native observability and replay framework for LLM apps and agents."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Vinay Gupta" }]
 keywords = ["agents", "llm", "observability", "opentelemetry", "tracing"]
 dependencies = []
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+    "Topic :: System :: Monitoring",
+]
+
+[project.optional-dependencies]
+dev = ["build>=1.2", "pre-commit>=3.7", "pytest>=8.0", "ruff>=0.5"]
+
+[project.urls]
+Homepage = "https://github.com/aivinay/agent-tracebench"
+Issues = "https://github.com/aivinay/agent-tracebench/issues"
+Source = "https://github.com/aivinay/agent-tracebench"
 
 [project.scripts]
 tracebench = "tracebench.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

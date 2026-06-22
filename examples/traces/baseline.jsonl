@@ -1,0 +1,3 @@
+{"name":"plan","started_at_ms":0,"ended_at_ms":120,"prompt_tokens":200,"completion_tokens":50,"attributes":{"model":"baseline"}}
+{"name":"tool.search","started_at_ms":125,"ended_at_ms":420,"prompt_tokens":80,"completion_tokens":30}
+{"name":"final","started_at_ms":430,"ended_at_ms":520,"prompt_tokens":40,"completion_tokens":80}
