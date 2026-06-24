@@ -142,6 +142,25 @@ docker run --rm agent-tracebench:dev --version
 - [Release checklist](docs/release.md)
 - [Roadmap](docs/roadmap.md)
 
+## Reproducibility and examples
+
+- `examples/case_study/` — an instrumented LangChain retrieval-augmented agent
+  with committed baseline/candidate traces; `run_case_study.py` regenerates them
+  and `run_power_study.py` runs the false-positive/power study.
+- `examples/benchmarks/` — `run_scalability.py` (operation latency vs trace size)
+  and `run_fidelity.py` (OpenTelemetry-export, round-trip, clustering, redaction,
+  and outlier checks).
+
+```bash
+PYTHONPATH=src python examples/benchmarks/run_fidelity.py
+PYTHONPATH=src python examples/benchmarks/run_scalability.py
+tracebench compare examples/case_study/baseline.jsonl \
+    examples/case_study/candidate.jsonl --method distribution --step-name retrieve
+```
+
+The case-study and benchmark scripts require extra packages (`langchain-core`,
+`tiktoken`, `numpy`) that are not needed by the core tool.
+
 ## Development
 
 ```bash

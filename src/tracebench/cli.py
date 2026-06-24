@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import __version__
 from .analysis import estimate_cost, latency_outliers, redact_steps
-from .assertions import compare_traces
+from .assertions import compare_step_distributions, compare_traces
 from .bench import cluster_failures, replay_events, summarize_trace, summary_to_markdown
 from .doctor import diagnostics_to_json, diagnostics_to_markdown, run_diagnostics
 from .io import read_jsonl, validate_jsonl, write_jsonl
@@ -91,6 +91,20 @@ def run(argv: list[str] | None = None) -> int:
     compare.add_argument("--max-token-regression-pct", type=float, default=10.0)
     compare.add_argument("--allow-new-failures", action="store_true")
     compare.add_argument("--format", choices=["json", "markdown"], default="json")
+    compare.add_argument(
+        "--method",
+        choices=["threshold", "distribution"],
+        default="threshold",
+        help="Regression test: aggregate threshold or per-step distribution (permutation) test.",
+    )
+    compare.add_argument(
+        "--metric",
+        choices=["latency_ms", "total_tokens", "prompt_tokens", "completion_tokens"],
+        default="latency_ms",
+    )
+    compare.add_argument("--step-name", type=str, default=None)
+    compare.add_argument("--alpha", type=float, default=0.05)
+    compare.add_argument("--resamples", type=int, default=10000)
 
     args = parser.parse_args(argv)
     try:
@@ -165,9 +179,23 @@ def _run_command(args: argparse.Namespace) -> int:
         return 0
 
     if args.command == "compare":
+        baseline_steps = read_jsonl(args.baseline)
+        candidate_steps = read_jsonl(args.candidate)
+        if args.method == "distribution":
+            shift = compare_step_distributions(
+                baseline_steps,
+                candidate_steps,
+                metric=args.metric,
+                step_name=args.step_name,
+                n_resamples=args.resamples,
+                alpha=args.alpha,
+            )
+            print(json.dumps(shift.to_dict(), indent=2, sort_keys=True))
+            return 2 if shift.significant else 0
+
         result = compare_traces(
-            read_jsonl(args.baseline),
-            read_jsonl(args.candidate),
+            baseline_steps,
+            candidate_steps,
             max_latency_regression_pct=args.max_latency_regression_pct,
             max_token_regression_pct=args.max_token_regression_pct,
             allow_new_failures=args.allow_new_failures,

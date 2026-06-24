@@ -9,6 +9,7 @@ from tracebench import (
     TRACE_JSON_SCHEMA,
     AgentStep,
     cluster_failures,
+    compare_step_distributions,
     compare_traces,
     estimate_cost,
     latency_outliers,
@@ -93,6 +94,53 @@ class TraceBenchTests(unittest.TestCase):
 
         self.assertFalse(result.passed)
         self.assertTrue(any("latency" in message for message in result.messages))
+
+    def test_distribution_test_detects_shift_and_controls_false_positives(self) -> None:
+        base = [AgentStep("retrieve", 0, ms) for ms in (90, 95, 100, 105, 110, 100, 98, 102)]
+        slower = [AgentStep("retrieve", 0, ms) for ms in (140, 145, 150, 155, 160, 150, 148, 152)]
+
+        shift = compare_step_distributions(base, slower, n_resamples=2000, seed=1)
+        self.assertTrue(shift.significant)
+        self.assertGreater(shift.observed_shift, 0)
+        self.assertLess(shift.p_value, 0.05)
+
+        unchanged = compare_step_distributions(base, list(base), n_resamples=2000, seed=1)
+        self.assertFalse(unchanged.significant)
+
+        again = compare_step_distributions(base, slower, n_resamples=2000, seed=1)
+        self.assertEqual(shift.p_value, again.p_value)  # deterministic for a fixed seed
+
+    def test_distribution_test_filters_by_step_name(self) -> None:
+        base = [AgentStep("retrieve", 0, 100), AgentStep("plan", 0, 10)]
+        cand = [AgentStep("retrieve", 0, 200), AgentStep("plan", 0, 10)]
+
+        shift = compare_step_distributions(base, cand, step_name="retrieve", n_resamples=500)
+
+        self.assertEqual(shift.baseline_n, 1)
+        self.assertEqual(shift.candidate_n, 1)
+
+    def test_cli_compare_distribution_method(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir) / "b.jsonl"
+            cand = Path(tmpdir) / "c.jsonl"
+            write_jsonl([AgentStep("retrieve", 0, ms) for ms in (90, 100, 110, 95, 105, 100)], base)
+            write_jsonl(
+                [AgentStep("retrieve", 0, ms) for ms in (190, 200, 210, 195, 205, 200)], cand
+            )
+
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = run(
+                    [
+                        "compare", str(base), str(cand),
+                        "--method", "distribution", "--resamples", "2000",
+                    ]
+                )
+            data = json.loads(out.getvalue())
+
+        self.assertEqual(code, 2)
+        self.assertTrue(data["significant"])
+        self.assertEqual(data["metric"], "latency_ms")
 
     def test_cost_outliers_and_redaction(self) -> None:
         steps = [
