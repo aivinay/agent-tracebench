@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Agent TraceBench: Reproducible observability, replay, and regression checks for LLM agents"
+version: "0.1.0"
+date-released: 2026-06-30
+type: software
+license: MIT
+abstract: >-
+  Agent TraceBench is an open-source, dependency-free Python package for
+  representing LLM-agent runs as JSON Lines traces, summarizing latency, token,
+  and failure behavior, replaying ordered steps, exporting
+  OpenTelemetry-compatible spans, and running regression checks in continuous
+  integration.
+authors:
+  - given-names: Vinay
+    family-names: Gupta
+    affiliation: Independent Researcher
+    orcid: "https://orcid.org/0009-0000-0749-6609"
+repository-code: "https://github.com/aivinay/agent-tracebench"
+url: "https://github.com/aivinay/agent-tracebench"
+keywords:
+  - large language model agents
+  - observability
+  - OpenTelemetry
+  - performance regression
+  - continuous integration
+  - reproducibility
