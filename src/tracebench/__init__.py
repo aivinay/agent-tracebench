@@ -13,7 +13,7 @@ from .otel import to_otel_spans
 from .reports import regression_to_markdown, validation_to_text
 from .schema import TRACE_FIELDS, TRACE_JSON_SCHEMA, schema_to_markdown
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "AgentStep",
