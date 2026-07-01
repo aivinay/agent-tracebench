@@ -44,7 +44,11 @@ def gen_trace(n: int, fail_rate: float, seed: int) -> list[AgentStep]:
                 completion_tokens=int(rng.lognormvariate(4.4, 0.6)),
                 status=status,
                 error_type=err,
-                attributes={"model": "m", "api_key": "sk-secret", "prompt": "hello"},
+                attributes={
+                    "model": "m",
+                    "api_key": "example-redacted-api-key",  # pragma: allowlist secret
+                    "prompt": "hello",
+                },
             )
         )
         clock += dur + rng.randint(1, 8)

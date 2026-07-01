@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import replace
 from statistics import median
@@ -16,6 +17,29 @@ _DEFAULT_REDACT_KEYS = {
     "password",
     "prompt",
     "secret",
+    "token",
+}
+
+_SENSITIVE_KEY_MARKERS = {
+    "apikey",
+    "accesskey",
+    "accesstoken",
+    "authorization",
+    "bearer",
+    "completion",
+    "credential",
+    "cookie",
+    "idtoken",
+    "input",
+    "messages",
+    "output",
+    "password",
+    "passwd",
+    "prompt",
+    "refreshtoken",
+    "secret",
+    "session",
+    "setcookie",
     "token",
 }
 
@@ -62,7 +86,9 @@ def redact_steps(
     redact_keys: set[str] | None = None,
     replacement: str = "[redacted]",
 ) -> list[AgentStep]:
-    keys = {key.lower() for key in (redact_keys or _DEFAULT_REDACT_KEYS)}
+    keys = {_normalize_key(key) for key in _DEFAULT_REDACT_KEYS}
+    if redact_keys:
+        keys.update(_normalize_key(key) for key in redact_keys)
     return [
         replace(step, attributes=_redact_mapping(dict(step.attributes), keys, replacement))
         for step in steps
@@ -76,7 +102,7 @@ def _redact_mapping(
 ) -> dict[str, object]:
     redacted: dict[str, object] = {}
     for key, value in payload.items():
-        if key.lower() in keys:
+        if _is_sensitive_key(key, keys):
             redacted[key] = replacement
         elif isinstance(value, dict):
             redacted[key] = _redact_mapping(value, keys, replacement)
@@ -88,3 +114,12 @@ def _redact_mapping(
         else:
             redacted[key] = value
     return redacted
+
+
+def _is_sensitive_key(key: str, keys: set[str]) -> bool:
+    normalized = _normalize_key(key)
+    return normalized in keys or any(marker in normalized for marker in _SENSITIVE_KEY_MARKERS)
+
+
+def _normalize_key(key: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", key.lower())

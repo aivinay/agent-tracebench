@@ -7,5 +7,7 @@ COPY src ./src
 
 RUN python -m pip install --no-cache-dir .
 
+USER 10001:10001
+
 ENTRYPOINT ["tracebench"]
 CMD ["--help"]

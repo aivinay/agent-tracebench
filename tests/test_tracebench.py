@@ -171,6 +171,31 @@ class TraceBenchTests(unittest.TestCase):
         self.assertEqual(redacted[0].attributes["prompt"], "[redacted]")
         self.assertEqual(redacted[1].attributes["safe"], "value")
 
+    def test_redaction_extends_defaults_and_matches_key_variants(self) -> None:
+        steps = [
+            AgentStep(
+                "model",
+                0,
+                10,
+                attributes={
+                    "apiKey": "provider-key",  # pragma: allowlist secret
+                    "access_token": "token",  # pragma: allowlist secret
+                    "custom_private": "value",
+                    "safe": "kept",
+                    "nested": {"set-cookie": "session=abc"},  # pragma: allowlist secret
+                },
+            )
+        ]
+
+        redacted = redact_steps(steps, redact_keys={"custom_private"})
+        attributes = redacted[0].attributes
+
+        self.assertEqual(attributes["apiKey"], "[redacted]")
+        self.assertEqual(attributes["access_token"], "[redacted]")
+        self.assertEqual(attributes["custom_private"], "[redacted]")
+        self.assertEqual(attributes["nested"]["set-cookie"], "[redacted]")
+        self.assertEqual(attributes["safe"], "kept")
+
     def test_validation_reports_line_issues(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "bad.jsonl"

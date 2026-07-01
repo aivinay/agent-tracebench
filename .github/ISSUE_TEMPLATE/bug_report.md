@@ -10,6 +10,9 @@ assignees: ""
 
 Describe the problem.
 
+Please do not paste real prompts, completions, tool arguments, credentials, or
+private trace data. Use a minimal synthetic trace whenever possible.
+
 ## Reproduction
 
 ```bash

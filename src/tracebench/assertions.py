@@ -136,7 +136,8 @@ def compare_step_distributions(
 
     pooled = base_values + cand_values
     n_candidate = len(cand_values)
-    rng = random.Random(seed)
+    # Deterministic resampling seed; this is not cryptographic randomness.
+    rng = random.Random(seed)  # nosec B311
     at_least = 0
     for _ in range(n_resamples):
         rng.shuffle(pooled)
